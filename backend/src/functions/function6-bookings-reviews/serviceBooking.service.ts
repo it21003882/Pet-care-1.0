@@ -4,6 +4,8 @@
  */
 
 import ServiceBooking from './serviceBooking.model';
+import ServiceCenter from '../function5-services/serviceCenter.model';
+import Service from '../function5-services/service.model';
 import { IServiceBooking, BookingStatus, UserRole } from '../../types/models';
 
 export interface CreateBookingInput {
@@ -40,12 +42,10 @@ export const getBookings = async (
   if (normalizedRole === 'owner' || normalizedRole === 'customer') {
     filter.userId = userId;
   } else if (normalizedRole === 'service_center') {
-    const ServiceCenter = (await import('../function5-services/serviceCenter.model')).default;
-    const Service = (await import('../function5-services/service.model')).default;
     const center = await ServiceCenter.findOne({ userId });
     if (center) {
       const myServices = await Service.find({ serviceCenterId: center._id }).select('_id');
-      const myServiceIds = myServices.map((s) => s._id);
+      const myServiceIds = myServices.map((s: { _id: { toString(): string } }) => s._id.toString());
       filter.serviceId = { $in: myServiceIds };
     } else {
       filter.serviceId = { $in: [] };
@@ -124,7 +124,6 @@ export const updateBookingStatus = async (
 
   // Service Centers can manage bookings for their own services
   if (normalizedRole === 'service_center') {
-    const ServiceCenter = (await import('../function5-services/serviceCenter.model')).default;
     const center = await ServiceCenter.findOne({ userId });
     const service = booking.serviceId as unknown as { serviceCenterId?: { toString(): string } };
     if (!center || !service?.serviceCenterId || service.serviceCenterId.toString() !== center._id.toString()) {

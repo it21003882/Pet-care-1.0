@@ -8,6 +8,8 @@
 
 import User from './user.model';
 import generateToken from '../../utils/generateToken';
+import VeterinarianModel from '../../functions/function2-veterinarians/veterinarian.model';
+import ServiceCenterModel from '../../functions/function5-services/serviceCenter.model';
 import { AuthPayload, IUser, IUserResponse, UserRole } from '../../types/models';
 
 interface RegisterInput {
@@ -62,8 +64,7 @@ export const registerUser = async (userData: RegisterInput): Promise<AuthPayload
 
   if (isDoctor) {
     try {
-      const Veterinarian = (await import('../../functions/function2-veterinarians/veterinarian.model')).default;
-      await Veterinarian.create({
+      await VeterinarianModel.create({
         userId: user._id,
         name: user.name,
         specialization: 'General Veterinary Care',
@@ -87,8 +88,7 @@ export const registerUser = async (userData: RegisterInput): Promise<AuthPayload
 
   if (normalizedRole === 'service_center') {
     try {
-      const ServiceCenter = (await import('../../functions/function5-services/serviceCenter.model')).default;
-      await ServiceCenter.create({
+      await ServiceCenterModel.create({
         userId: user._id,
         name: user.name,
         phone: user.phone || '000-000-0000',
@@ -234,8 +234,7 @@ export const setDoctorVerification = async (
   }
 
   try {
-    const Veterinarian = (await import('../../functions/function2-veterinarians/veterinarian.model')).default;
-    await Veterinarian.findOneAndUpdate({ userId: targetUserId }, { isVerified });
+    await VeterinarianModel.findOneAndUpdate({ userId: targetUserId }, { isVerified });
   } catch (e) {
     console.error('Failed to update Veterinarian verification status:', e);
   }

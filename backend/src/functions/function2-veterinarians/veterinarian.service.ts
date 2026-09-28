@@ -3,6 +3,7 @@
  * Owner: Function 2 — Veterinarian Management
  */
 
+import User from '../../common/authentication/user.model';
 import Veterinarian from './veterinarian.model';
 import { IVeterinarian, UserRole } from '../../types/models';
 
@@ -83,7 +84,6 @@ export const updateVeterinarian = async (
 export const getMyVeterinarianProfile = async (userId: string): Promise<IVeterinarian> => {
   let vet = await Veterinarian.findOne({ userId }).populate('userId', 'name email phone');
   if (!vet) {
-    const User = (await import('../../common/authentication/user.model')).default;
     const user = await User.findById(userId);
     if (!user) throw Object.assign(new Error('User not found.'), { statusCode: 404 });
 
