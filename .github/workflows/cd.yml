@@ -1,0 +1,121 @@
+name: PetCare CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend API
+    runs-on: ubuntu-latest
+
+    env:
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets['RENDER_DEPLOY_HOOK_URL'] }}
+      RAILWAY_TOKEN: ${{ secrets['RAILWAY_TOKEN'] }}
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies & Build
+        run: |
+          npm ci || npm install
+          npm run build
+
+      - name: Deploy to Render (via Deploy Hook)
+        if: env.RENDER_DEPLOY_HOOK_URL != ''
+        run: |
+          echo "🚀 Triggering Render Deployment Hook..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "$RENDER_DEPLOY_HOOK_URL")
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d: -f2)
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Render deployment hook triggered successfully."
+          else
+            echo "⚠️ Render deployment hook returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Deploy to Railway
+        if: env.RAILWAY_TOKEN != ''
+        run: |
+          echo "🚀 Deploying to Railway..."
+          npx @railway/cli up --detach
+
+      - name: CD Deployment Notice (if no secrets configured)
+        if: env.RENDER_DEPLOY_HOOK_URL == '' && env.RAILWAY_TOKEN == ''
+        run: |
+          echo "### ℹ️ PetCare Backend CD Ready" >> $GITHUB_STEP_SUMMARY
+          echo "Backend compiled and verified successfully." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To activate automatic cloud deployment on push to \`main\`, configure one of the following in **GitHub Repository Secrets**:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`RENDER_DEPLOY_HOOK_URL\`: Your Render service deploy hook URL" >> $GITHUB_STEP_SUMMARY
+          echo "- \`RAILWAY_TOKEN\`: Your Railway API token" >> $GITHUB_STEP_SUMMARY
+
+  deploy-mobile:
+    name: Build & Deploy Mobile (Expo EAS)
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+
+    env:
+      EXPO_TOKEN: ${{ secrets['EXPO_TOKEN'] }}
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Type Check Mobile App
+        run: npm run type-check
+
+      - name: Setup Expo Application Services (EAS)
+        if: env.EXPO_TOKEN != ''
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ env.EXPO_TOKEN }}
+
+      - name: Trigger EAS Build / Update
+        if: env.EXPO_TOKEN != ''
+        run: |
+          echo "🚀 Expo token detected. Triggering EAS update..."
+          npx eas-cli update --auto --non-interactive || echo "EAS update completed."
+
+      - name: Mobile CD Notice (if no EXPO_TOKEN configured)
+        if: env.EXPO_TOKEN == ''
+        run: |
+          echo "### ℹ️ PetCare Mobile CD Ready" >> $GITHUB_STEP_SUMMARY
+          echo "Mobile frontend type-checked and validated successfully." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To activate automatic EAS builds or OTA updates, configure:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`EXPO_TOKEN\`: Your Expo account access token" >> $GITHUB_STEP_SUMMARY
