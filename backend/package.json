@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc --moduleResolution node",
+    "prebuild": "node scripts/fix-tsconfig.js",
+    "build": "node scripts/fix-tsconfig.js && tsc --moduleResolution node",
     "build:watch": "tsc --watch",
     "test": "jest --detectOpenHandles --forceExit"
   },
