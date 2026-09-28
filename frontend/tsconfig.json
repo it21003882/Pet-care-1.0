@@ -12,6 +12,7 @@
     "resolveJsonModule": true,
     "strict": true,
     "target": "esnext",
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": [
