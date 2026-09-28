@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "moduleResolution": "node10",
+    "moduleResolution": "node",
     "lib": ["ES2020", "dom"],
     "types": ["node"],
     "typeRoots": [
@@ -20,6 +20,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "ignoreDeprecations": "5.0",
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noImplicitReturns": true,
